@@ -1,0 +1,30 @@
+# Example policy for a custom tool allowlist.
+name: custom-tool
+description: Permit a reporting agent to query approved data and save its report.
+default_action: deny
+max_tool_calls: 75
+
+rules:
+  # Custom tools use the same tool/resource matching as built-ins.
+  - action: allow
+    tool: reports.query
+    resource: "sales/*"
+    description: Query approved sales reports
+
+  - action: allow
+    tool: reports.save
+    resource: "./reports/*"
+    description: Save generated reports
+
+  # The agent may read supporting project files.
+  - action: allow
+    tool: fs.read
+    resource: "./data/**/*"
+    description: Read local report inputs
+
+  # Keep unrelated custom tools blocked by the deny-by-default policy.
+  - action: deny
+    tool: reports.query
+    resource: "admin/*"
+    description: Prevent administrative queries
+

@@ -1,0 +1,50 @@
+# Bounded policy for a CI or deployment agent.
+name: ci-agent
+description: Permit build and deployment checks without destructive cleanup.
+default_action: deny
+max_tool_calls: 30
+
+rules:
+  # CI can inspect source and automation configuration.
+  - action: allow
+    tool: fs.read
+    resource: "./**/*"
+    description: Read the checked-out project
+
+  # Common validation commands.
+  - action: allow
+    tool: shell
+    resource: "pytest *"
+    description: Run Python tests
+
+  - action: allow
+    tool: shell
+    resource: "ruff *"
+    description: Run Python linting
+
+  - action: allow
+    tool: shell
+    resource: "docker build *"
+    description: Build a container image
+
+  - action: allow
+    tool: shell
+    resource: "docker push *"
+    description: Publish the built image
+
+  # Destructive operations remain denied.
+  - action: deny
+    tool: shell
+    resource: "kubectl delete *"
+    description: Prevent cluster resource deletion
+
+  - action: deny
+    tool: shell
+    resource: "docker rm *"
+    description: Prevent container removal
+
+  - action: deny
+    tool: shell
+    resource: "rm *"
+    description: Prevent file deletion
+

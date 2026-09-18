@@ -63,6 +63,14 @@ agent-guard check .agent-guard.yaml --tool shell --resource "rm -rf /"
 
 Pre-made templates for common scenarios. Copy, customize, and use.
 
+The same templates are checked in under [`examples/policies/`](examples/policies/).
+Start with one and audit it before adapting it to your agent:
+
+```bash
+cp examples/policies/read-only.yaml .agent-guard.yaml
+agent-guard audit .agent-guard.yaml
+```
+
 ### Template 1: Read-Only Code Reviewer
 
 Perfect for code review agents that should only read files and run read-only git commands.

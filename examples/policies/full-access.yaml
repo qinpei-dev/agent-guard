@@ -1,0 +1,28 @@
+# Permissive policy for a trusted, isolated development agent.
+name: full-access
+description: Allow normal development operations while retaining guardrails for destructive actions.
+default_action: allow
+max_tool_calls: 500
+
+# Even a permissive policy should block the most dangerous tool classes.
+blocked_tools:
+  - destructive_*
+  - admin_*
+
+rules:
+  # Keep destructive filesystem operations opt-in.
+  - action: deny
+    tool: fs.delete
+    resource: "/**"
+    description: Prevent system-directory deletion
+
+  - action: deny
+    tool: shell
+    resource: "rm -rf /"
+    description: Prevent root deletion
+
+  - action: deny
+    tool: shell
+    resource: "git push --force *"
+    description: Prevent force pushes
+
