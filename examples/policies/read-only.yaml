@@ -1,0 +1,45 @@
+# Read-only policy for code review and analysis agents.
+name: read-only
+description: Allow inspection while preventing writes and pushes.
+default_action: deny
+max_tool_calls: 100
+
+# These tool names are denied before rule evaluation.
+blocked_tools:
+  - destructive_*
+  - admin_*
+
+rules:
+  # Project files can be inspected.
+  - action: allow
+    tool: fs.read
+    resource: "./**/*"
+    description: Read project files
+
+  # Read-only git commands are useful to reviewers.
+  - action: allow
+    tool: shell
+    resource: "git status"
+    description: Inspect repository status
+
+  - action: allow
+    tool: shell
+    resource: "git diff *"
+    description: Inspect changes
+
+  - action: allow
+    tool: shell
+    resource: "git log *"
+    description: Inspect history
+
+  # Keep the policy explicit if a caller tries to write or push.
+  - action: deny
+    tool: fs.write
+    resource: "./**/*"
+    description: Prevent file changes
+
+  - action: deny
+    tool: shell
+    resource: "git push *"
+    description: Prevent repository pushes
+

@@ -1,0 +1,40 @@
+# Restrictive policy for an agent running in ./sandbox.
+name: sandboxed
+description: Limit filesystem and test activity to the project sandbox.
+default_action: deny
+max_tool_calls: 50
+
+rules:
+  # The agent may inspect and change only sandbox files.
+  - action: allow
+    tool: fs.read
+    resource: "./sandbox/**/*"
+    description: Read sandbox files
+
+  - action: allow
+    tool: fs.write
+    resource: "./sandbox/**/*"
+    description: Write sandbox files
+
+  - action: allow
+    tool: fs.delete
+    resource: "./sandbox/**/*"
+    description: Delete sandbox files
+
+  # Permit the project's test command without granting general shell access.
+  - action: allow
+    tool: shell
+    resource: "pytest *"
+    description: Run the test suite
+
+  # Make escape attempts explicit and easy to audit.
+  - action: deny
+    tool: fs.*
+    resource: "../**"
+    description: Prevent parent-directory access
+
+  - action: deny
+    tool: fs.*
+    resource: "/**"
+    description: Prevent system-directory access
+
