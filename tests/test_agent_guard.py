@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from django.utils import asyncio
 import pytest
+import asyncio
 
 from agent_guard import Action, Guard, Policy, RiskLevel, Rule, ToolCall
 
@@ -268,6 +270,46 @@ rules: []
         v = g.check(call)
         assert v.allowed is True
 
+class TestAsyncGuard:
+    @pytest.mark.asyncio
+    async def test_check_async(self, guard: Guard):
+        call = ToolCall(tool="fs.read", resource="./src/main.py")
+        v = await guard.check_async(call)
+        assert v.allowed is True
+
+    @pytest.mark.asyncio
+    async def test_check_batch_async(self, guard: Guard):
+        calls = [
+            ToolCall(tool="fs.read", resource="./src/main.py"),
+            ToolCall(tool="shell", resource="ls -la"),
+            ToolCall(tool="fs.write", resource="/etc/passwd"),
+        ]
+        verdicts = await guard.check_batch_async(calls)
+        assert verdicts[0].allowed is True
+        assert verdicts[1].allowed is True
+        assert verdicts[2].allowed is False
+    @pytest.mark.asyncio
+    async def test_guard_concurrent_checks(self, guard: Guard):
+        calls = [
+            ToolCall(tool="fs.read", resource="./src/main.py")
+            for _ in range(100)
+        ]
+
+        verdicts = await asyncio.gather(
+            *(guard.check_async(call) for call in calls)
+        )
+
+        assert len(verdicts) == 100
+        assert all(v.allowed is True for v in verdicts)
+    @pytest.mark.asyncio
+    async def test_from_file_async(tmp_path):
+        policy_file = tmp_path / "policy.yaml"
+        policy_file.write_text(SAMPLE_POLICY)
+
+        policy = await Policy.from_file_async(policy_file)
+
+        assert policy.name == "test-agent"
+        assert policy.default_action == Action.DENY
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
