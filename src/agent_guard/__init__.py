@@ -208,6 +208,7 @@ class Guard:
     def check(self, call: ToolCall) -> Verdict:
         with self._lock:
             self.tool_call_count += 1
+            self.execution_count += 1
             current_count = self.tool_call_count
             self.execution_count += 1
             current_exec = self.execution_count
@@ -218,6 +219,13 @@ class Guard:
                 allowed=False,
                 rule=None,
                 reason=f"max_tool_calls exceeded ({self.policy.max_tool_calls})",
+                risk=RiskLevel.HIGH,
+            )
+        if self.policy.max_executions and self.execution_count > self.policy.max_executions:
+            return Verdict(
+                allowed=False,
+                rule=None,
+                reason=f"max_executions exceeded ({self.policy.max_executions})",
                 risk=RiskLevel.HIGH,
             )
 
