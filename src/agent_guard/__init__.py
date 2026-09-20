@@ -7,6 +7,7 @@ Prevents agents from exceeding defined scopes (network, filesystem, commands).
 from __future__ import annotations
 
 import asyncio
+import json
 import re
 import fnmatch
 import threading
@@ -182,11 +183,35 @@ class GuardStats:
 class Guard:
     """Evaluate tool calls against a policy."""
 
-    def __init__(self, policy: Policy):
+    def __init__(self, policy: Policy, state_file: str | Path | None = None):
         self.policy = policy
-        self.execution_count = 0
-        self.tool_call_count = 0
+        self._state_file = Path(state_file) if state_file else None
         self._lock = threading.Lock()
+        # Load persisted counters if state file exists
+        if self._state_file and self._state_file.exists():
+            try:
+                data = json.loads(self._state_file.read_text())
+                self.execution_count = data.get("execution_count", 0)
+                self.tool_call_count = data.get("tool_call_count", 0)
+            except (json.JSONDecodeError, OSError):
+                self.execution_count = 0
+                self.tool_call_count = 0
+        else:
+            self.execution_count = 0
+            self.tool_call_count = 0
+
+    def _save_state(self) -> None:
+        """Persist counters to state file."""
+        if not self._state_file:
+            return
+        try:
+            self._state_file.parent.mkdir(parents=True, exist_ok=True)
+            self._state_file.write_text(json.dumps({
+                "execution_count": self.execution_count,
+                "tool_call_count": self.tool_call_count,
+            }))
+        except OSError:
+            pass  # Non-fatal: state persistence is best-effort
 
     def reset(self) -> "Guard":
         """Reset execution and tool call counters to zero."""
@@ -210,8 +235,8 @@ class Guard:
             self.tool_call_count += 1
             self.execution_count += 1
             current_count = self.tool_call_count
-            self.execution_count += 1
             current_exec = self.execution_count
+            self._save_state()
 
         # Global limits
         if self.policy.max_tool_calls and current_count > self.policy.max_tool_calls:
@@ -221,14 +246,6 @@ class Guard:
                 reason=f"max_tool_calls exceeded ({self.policy.max_tool_calls})",
                 risk=RiskLevel.HIGH,
             )
-        if self.policy.max_executions and self.execution_count > self.policy.max_executions:
-            return Verdict(
-                allowed=False,
-                rule=None,
-                reason=f"max_executions exceeded ({self.policy.max_executions})",
-                risk=RiskLevel.HIGH,
-            )
-
         if self.policy.max_executions and current_exec > self.policy.max_executions:
             return Verdict(
                 allowed=False,

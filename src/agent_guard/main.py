@@ -10,6 +10,8 @@ import click
 
 from . import Guard, Policy, ToolCall
 
+DEFAULT_STATE_FILE = Path(".agent-guard-state.json")
+
 
 @click.group()
 @click.version_option(version="0.1.0", prog_name="agent-guard")
@@ -22,10 +24,11 @@ def cli():
 @click.option("--tool", required=True, help="Tool name (e.g., browser, shell)")
 @click.option("--resource", default="", help="Resource pattern (URL, path, command)")
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
-def check(policy_file: str, tool: str, resource: str, as_json: bool):
+@click.option("--state-file", "state_file", default=None, type=click.Path(), help="Path to state file for persisting counters")
+def check(policy_file: str, tool: str, resource: str, as_json: bool, state_file: str):
     """Check if a tool call is allowed by the policy."""
     policy = Policy.from_file(policy_file)
-    guard = Guard(policy)
+    guard = Guard(policy, state_file=state_file or DEFAULT_STATE_FILE)
     call = ToolCall(tool=tool, resource=resource)
     verdict = guard.check(call)
 
@@ -35,6 +38,8 @@ def check(policy_file: str, tool: str, resource: str, as_json: bool):
             "reason": verdict.reason,
             "risk": verdict.risk.value,
             "rule": None,
+            "execution_count": guard.execution_count,
+            "tool_call_count": guard.tool_call_count,
         }
         if verdict.rule:
             output["rule"] = {
@@ -48,8 +53,21 @@ def check(policy_file: str, tool: str, resource: str, as_json: bool):
         icon = "✅" if verdict.allowed else "❌"
         click.echo(f"{icon} {verdict.allowed} — {verdict.reason}")
         click.echo(f"   risk: {verdict.risk.value}")
+        click.echo(f"   execution_count: {guard.execution_count}, tool_call_count: {guard.tool_call_count}")
 
     sys.exit(0 if verdict.allowed else 1)
+
+
+@cli.command()
+@click.argument("policy_file", type=click.Path(exists=True))
+@click.option("--state-file", "state_file", default=None, type=click.Path(), help="Path to state file to reset")
+def reset(policy_file: str, state_file: str):
+    """Reset execution and tool call counters."""
+    policy = Policy.from_file(policy_file)
+    guard = Guard(policy, state_file=state_file or DEFAULT_STATE_FILE)
+    guard.reset()
+    guard._save_state()
+    click.echo("✅ Counters reset to zero.")
 
 
 @cli.command()
