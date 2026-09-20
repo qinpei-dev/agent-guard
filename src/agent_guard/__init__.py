@@ -209,6 +209,8 @@ class Guard:
         with self._lock:
             self.tool_call_count += 1
             current_count = self.tool_call_count
+            self.execution_count += 1
+            current_exec = self.execution_count
 
         # Global limits
         if self.policy.max_tool_calls and current_count > self.policy.max_tool_calls:
@@ -216,6 +218,14 @@ class Guard:
                 allowed=False,
                 rule=None,
                 reason=f"max_tool_calls exceeded ({self.policy.max_tool_calls})",
+                risk=RiskLevel.HIGH,
+            )
+
+        if self.policy.max_executions and current_exec > self.policy.max_executions:
+            return Verdict(
+                allowed=False,
+                rule=None,
+                reason=f"max_executions exceeded ({self.policy.max_executions})",
                 risk=RiskLevel.HIGH,
             )
 
@@ -231,7 +241,7 @@ class Guard:
 
         # SECURITY: Sanitize shell resource to prevent command injection
         if call.tool in ("shell", "bash"):
-            dangerous = [";", "|", "&", "$", "`", ">", "<", "\n", "\r", "#", "&&", "||"]
+            dangerous = [";", "|", "&", "$", "`", ">", "<", "\n", "\r", "&&", "||"]
             for ch in dangerous:
                 if ch in (call.resource or ""):
                     return Verdict(

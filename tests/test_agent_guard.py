@@ -358,7 +358,6 @@ max_executions: 3
 rules: []
 """)
         guard = Guard(policy)
-        guard.execution_count = 2
         guard.check(ToolCall(tool="fs.read", resource="./file.txt"))
         guard.check(ToolCall(tool="fs.read", resource="./file2.txt"))
 
