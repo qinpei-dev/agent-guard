@@ -210,7 +210,6 @@ class Guard:
             self.tool_call_count += 1
             self.execution_count += 1
             current_count = self.tool_call_count
-            self.execution_count += 1
             current_exec = self.execution_count
 
         # Global limits
