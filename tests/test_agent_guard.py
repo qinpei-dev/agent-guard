@@ -125,6 +125,21 @@ rules: []
         assert v.allowed is False
         assert "max_tool_calls" in v.reason
 
+    @pytest.mark.parametrize("n", [1, 5, 10])
+    def test_max_tool_calls_boundary(self, n):
+        p = Policy.from_yaml(f"""
+name: limited
+default_action: allow
+max_tool_calls: {n}
+rules: []
+""")
+        g = Guard(p)
+        for i in range(n):
+            assert g.check(ToolCall(tool="x", resource=f"r{i}")).allowed is True
+        v = g.check(ToolCall(tool="x", resource="over"))
+        assert v.allowed is False
+        assert "max_tool_calls" in v.reason
+
 
 class TestDomains:
     def test_blocked_domain(self):
